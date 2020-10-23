@@ -1,0 +1,5 @@
+======================================2020-10-16 16:55:05======================================
+System.IndexOutOfRangeException: 无法找到表 0。
+   在 System.Data.DataTableCollection.get_Item(Int32 index)
+   在 FluUserUploadData.Form1.button1_Click(Object sender, EventArgs e) 位置 C:\Users\Administrator.JLIP5NBF6X6MXTR\Desktop\流感系统\流感系统\FluUserUploadData\FluUserUploadData\Form1.cs:行号 314
+   在 FluUserUploadData.Form1.Form1_Load(Object sender, EventArgs e) 位置 C:\Users\Administrator.JLIP5NBF6X6MXTR\Desktop\流感系统\流感系统\FluUserUploadData\FluUserUploadData\Form1.cs:行号 1884

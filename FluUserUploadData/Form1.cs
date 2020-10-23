@@ -1179,7 +1179,7 @@ SELECT INFO.INPATIENT_NO AS P3, --病案号
          WHERE INFO.DEPT_CODE = A.LOCAL_CODE
            AND A.INTERFACE_TYPE = '科室对照'
            AND ROWNUM = 1) AS P26, ---出院科别
-       TRUNC(INFO.OUT_DATE - INFO.IN_DATE) AS P27, --实际住院天数
+       decode(TRUNC(INFO.OUT_DATE - INFO.IN_DATE),0,1,TRUNC(INFO.OUT_DATE - INFO.IN_DATE)) AS P27, --实际住院天数
        NVL(INFO.CLINIC_DIAGNOSE,
            (SELECT M.DIAG_NAME
               FROM MET_CAS_DIAGNOSE M
@@ -1211,7 +1211,7 @@ SELECT INFO.INPATIENT_NO AS P3, --病案号
 
                 DataView receiveDV = dt.DefaultView;
 
-                receiveDV.RowFilter = "patient_type ='住院'";
+                receiveDV.RowFilter = "patient_type ='住院' and patient_inout='O'";
                 dt = receiveDV.ToTable();
 
                 var query = from t in dt.AsEnumerable()
@@ -1222,16 +1222,18 @@ SELECT INFO.INPATIENT_NO AS P3, --病案号
                             };
                 if (query.ToList().Count > 0)
                 {
+                    BaseObj obj = null;
                     query.ToList().ForEach(q =>
                     {
-                        if (!q.clinic_code.Contains("-"))
-                        {
-                            DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
+                        DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
 
-                            if (ds.Tables[0].Rows.Count > 0)
-                            {
-                                all.Merge(ds.Tables[0]);
-                            }
+                        if (ds.Tables[0].Rows.Count > 0)
+                        {
+                            obj = new BaseObj();
+                            GetEmrOutResult(q.clinic_code, out obj);
+                            if(obj != null && obj.ExtendF !="1")
+
+                            all.Merge(ds.Tables[0]);
                         }
                     });
                 }
@@ -2032,6 +2034,7 @@ select t.patient_no as P3, --病案号
                 baseObj.ExtendC = sb.ToString();
                 baseObj.ExtendD = emrTextBox1;
                 baseObj.ExtendE = emrMultiLineTextBox3;
+                baseObj.ExtendF = "0";
 
                 sb = null;
 
@@ -2079,6 +2082,8 @@ select t.patient_no as P3, --病案号
                         baseObj.ExtendE = GetPropertyValue(x);
                     }
                 }
+
+                baseObj.ExtendF = "0";
                 #endregion
             }
 
@@ -2152,6 +2157,7 @@ select t.patient_no as P3, --病案号
 
             baseObj.ExtendD = "死亡";
             baseObj.ExtendE = "无";
+            baseObj.ExtendF = "1";
 
             return;
 
@@ -2234,6 +2240,8 @@ select t.patient_no as P3, --病案号
                 }
             }
 
+            baseObj.ExtendF = "0";
+
             return;
 
         }
@@ -2305,6 +2313,7 @@ select t.patient_no as P3, --病案号
 
             baseObj.ExtendD = "死亡";
             baseObj.ExtendE = "无";
+            baseObj.ExtendF = "1";
 
             return;
 

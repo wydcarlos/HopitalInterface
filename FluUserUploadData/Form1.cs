@@ -795,7 +795,7 @@ SELECT
                 dt = receiveDV.ToTable();
 
                 var query = from t in dt.AsEnumerable()
-                            group t by new { t1 = t.Field<string>("clinic_code"),t2=t.Field<string>("kdate") } into m
+                            group t by new { t1 = t.Field<string>("pno"),t2=t.Field<string>("kdate") } into m
                             select new
                             {
                                 clinic_code = m.Key.t1,
@@ -885,10 +885,10 @@ SELECT
            AND ROWNUM = 1) AS P26, --出院科别,
        TRUNC(OUT_DATE - T.IN_DATE) AS P27, --实际住院天数
        '' AS P8600, --入院诊断
-       '' AS P8604, ----入院情况及诊疗和抢救经过
-       '' AS P8605, ----死亡诊断
-       '' AS P8606, -----死亡原因
-       T.OUT_DATE AS P8509 ---死亡时间 
+       '' AS P8601, ----出院诊断
+       '' AS P8602, ----入院情况
+       '' AS P8603, -----出院情况
+       '' AS P8604 ---出院医嘱
   FROM FIN_IPR_INMAININFO T
  WHERE T.INPATIENT_NO = '{0}'
 
@@ -930,34 +930,39 @@ SELECT
 
                             if (ds.Tables[0].Rows.Count > 0)
                             {
-                                obj = new BaseObj();
-                                GetEmrOutResult(q.clinic_code, out obj);
-
-                                if (obj == null || string.IsNullOrEmpty(obj.ExtendA))
+                                try
                                 {
-                                    GetEmr24HourInOut(q.clinic_code, out obj);
-                                }
+                                    obj = new BaseObj();
+                                    GetEmrOutResult(q.clinic_code, out obj);
 
-                                if (obj != null || !string.IsNullOrEmpty(obj.ExtendA))
-                                {
-                                    foreach (DataRow dr in ds.Tables[0].Rows)
+                                    if (obj == null || string.IsNullOrEmpty(obj.ExtendA))
                                     {
-                                        //baseObj.ExtendB = GetPropertyValue(x); //入院情况
-                                        //baseObj.ExtendF = GetPropertyValue(x); //入院诊断
-                                        //baseObj.ExtendC = GetPropertyValue(x);//治疗经过
-                                        //baseObj.ExtendD = GetPropertyValue(x); //出院情况
-                                        //baseObj.ExtendG = GetPropertyValue(x);// 出院诊断
-                                        //baseObj.ExtendE = GetPropertyValue(x); //出院医嘱
-
-                                        dr["P8600"] = obj.ExtendF.Replace("\r","").Replace("\n","");
-                                        dr["P8601"] = obj.ExtendG.Replace("\r", "").Replace("\n", ""); 
-                                        dr["P8602"] = obj.ExtendB.Replace("\r", "").Replace("\n", "") + obj.ExtendC.Replace("\r", "").Replace("\n", "");
-                                        dr["P8603"] = obj.ExtendD.Replace("\r", "").Replace("\n", "");
-                                        dr["P8604"] = obj.ExtendE.Replace("\r", "").Replace("\n", "");
+                                        GetEmr24HourInOut(q.clinic_code, out obj);
                                     }
 
-                                    all.Merge(ds.Tables[0]);
+                                    if (obj != null || !string.IsNullOrEmpty(obj.ExtendA))
+                                    {
+                                        foreach (DataRow dr in ds.Tables[0].Rows)
+                                        {
+                                            //baseObj.ExtendB = GetPropertyValue(x); //入院情况
+                                            //baseObj.ExtendF = GetPropertyValue(x); //入院诊断
+                                            //baseObj.ExtendC = GetPropertyValue(x);//治疗经过
+                                            //baseObj.ExtendD = GetPropertyValue(x); //出院情况
+                                            //baseObj.ExtendG = GetPropertyValue(x);// 出院诊断
+                                            //baseObj.ExtendE = GetPropertyValue(x); //出院医嘱
+
+                                            dr["P8600"] = obj.ExtendF.Replace("\r", "").Replace("\n", "");
+                                            dr["P8601"] = obj.ExtendG.Replace("\r", "").Replace("\n", "");
+                                            dr["P8602"] = obj.ExtendB.Replace("\r", "").Replace("\n", "") + obj.ExtendC.Replace("\r", "").Replace("\n", "");
+                                            dr["P8603"] = obj.ExtendD.Replace("\r", "").Replace("\n", "");
+                                            dr["P8604"] = obj.ExtendE.Replace("\r", "").Replace("\n", "");
+                                        }
+
+                                        all.Merge(ds.Tables[0]);
+                                    }
                                 }
+                                catch (Exception em)
+                                { }
                             }
                         }
                         catch (Exception ex)
@@ -1371,6 +1376,17 @@ SELECT '01' P7501, -- 1 就诊类型
             #endregion
         }
 
+        private void btnExport_Click(object sender, EventArgs e)
+        {
+            this.btnFluPatient_Click(null, null);
+            this.btnOutpatient_Click(null, null);
+            this.btnOutResult_Click(null, null);
+            this.btnDeath_Click(null, null);
+            this.btnDrug_Click(null, null);
+            //this.btnLis_Click(null, null);
+        }
+
+
         /// <summary>
         /// 导出csv文件
         /// </summary>
@@ -1602,8 +1618,8 @@ SELECT '01' P7501, -- 1 就诊类型
 
             string sqlVfp = string.Format(@"
 
-SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
-  FROM (SELECT C.CLINIC_CODE CLINIC_CODE, '门诊' PATIENT_TYPE, 'M' INSTATE,trunc(c.reg_date) kdate
+SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE, to_char(KDATE,'yyyy-MM-dd') kdate,pno
+  FROM (SELECT C.CLINIC_CODE CLINIC_CODE, '门诊' PATIENT_TYPE, 'I' INSTATE,trunc(c.reg_date) kdate,c.card_no pno
           FROM FIN_OPR_REGISTER C, MET_CAS_DIAGNOSE D
          WHERE C.CLINIC_CODE = D.INPATIENT_NO
            AND SUBSTR(D.ICD_CODE, 0, 3) BETWEEN 'J00' AND 'J99'
@@ -1624,7 +1640,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
            AND r.reg_date <= TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')*/
         UNION ALL
         --根据门诊药品名称       
-        SELECT B.CLINIC_CODE, '门诊' PATIENT_TYPE, 'M' INSTATE,trunc(A.reg_date) kdate
+        SELECT B.CLINIC_CODE, '门诊' PATIENT_TYPE, 'I' INSTATE,trunc(A.reg_date) kdate,A.card_no pno
           FROM FIN_OPR_REGISTER A, FIN_OPB_FEEDETAIL B
          WHERE A.CLINIC_CODE = B.CLINIC_CODE
            AND A.REG_DATE > TO_DATE('{0} 00:00:00', 'yyyy-mm-dd hh24:mi:ss')
@@ -1644,7 +1660,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
            AND B.CANCEL_FLAG = '1'
         UNION ALL
         --门诊病历主诉提取
-        SELECT V.CLINIC_CODE, '门诊' PATIENT_TYPE, 'M' INSTATE,trunc(V.reg_date) kdate
+        SELECT V.CLINIC_CODE, '门诊' PATIENT_TYPE, 'I' INSTATE,trunc(V.reg_date) kdate,v.card_no pno
           FROM FIN_OPR_REGISTER V, MET_CAS_HISTORY CURE
          WHERE V.CLINIC_CODE = CURE.CLINIC_CODE
            AND V.VALID_FLAG = '1'
@@ -1658,7 +1674,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
                TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')
         UNION ALL
         -- 住院诊断
-        SELECT B.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'I' INSTATE,trunc(B.IN_DATE) kdate
+        SELECT B.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'I' INSTATE,trunc(B.IN_DATE) kdate,b.patient_no pno
           FROM MET_CAS_DIAGNOSE A, FIN_IPR_INMAININFO B
          WHERE A.INPATIENT_NO = B.INPATIENT_NO
            AND SUBSTR(A.ICD_CODE, 0, 3) BETWEEN 'J00' AND 'J99'
@@ -1667,7 +1683,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
            AND B.IN_STATE = 'I'
         UNION ALL
         --住院使用了这个药品的患者
-        SELECT AF.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'I' INSTATE,trunc(AF.IN_DATE) kdate
+        SELECT AF.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'I' INSTATE,trunc(AF.IN_DATE) kdate,AF.patient_no pno
           FROM FIN_IPR_INMAININFO AF, FIN_IPB_MEDICINELIST BD
          WHERE AF.INPATIENT_NO = BD.INPATIENT_NO
            AND AF.IN_STATE IN ('I', 'R')
@@ -1685,7 +1701,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
                INSTR(BD.DRUG_NAME, '金刚乙胺') > 0 OR
                INSTR(BD.DRUG_NAME, '利巴韦林') > 0)
         UNION ALL
-        SELECT B.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'O' INSTATE,trunc(B.OUT_DATE) kdate
+        SELECT B.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'O' INSTATE,trunc(B.OUT_DATE) kdate,b.patient_no pno
           FROM MET_CAS_DIAGNOSE A, FIN_IPR_INMAININFO B
          WHERE A.INPATIENT_NO = B.INPATIENT_NO
            AND SUBSTR(A.ICD_CODE, 0, 3) BETWEEN 'J00' AND 'J99'
@@ -1694,7 +1710,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
                TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')
         UNION ALL
         --住院使用了这个药品的患者
-        SELECT AF.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'O' INSTATE,trunc(AF.OUT_DATE) kdate
+        SELECT AF.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'O' INSTATE,trunc(AF.OUT_DATE) kdate,AF.patient_no pno
           FROM FIN_IPR_INMAININFO AF, FIN_IPB_MEDICINELIST BD
          WHERE AF.INPATIENT_NO = BD.INPATIENT_NO
            AND AF.OUT_DATE >
@@ -1750,7 +1766,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
             try
             {
                 //获取流感患者
-                GetFluUserData();
+                //GetFluUserData();
 
                 //this.label5.Text = "当前上传：门急诊和在院流感病例数据";
                 //this.button1_Click(null, null);
@@ -1865,11 +1881,12 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
   FROM EMR_QCDATA M, COM_FILEINFO N
  WHERE M.INPATIENTNO = '{0}'
    AND M.ID = N.ID
-   AND M.EMRNAME in ({ 1})
+   AND M.EMRNAME in ({1})
    AND M.STATE <> '3'";
 
             sql = string.Format(sql, inpatientNo, "'出院小结', '出院记录'");
 
+            connection.Open();
             OracleCommand command = new OracleCommand(sql, connection);
             OracleDataReader Reader = command.ExecuteReader();
 
@@ -2080,7 +2097,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
                 //baseObj.ExtendE = emrMultiLineTextBox3;
                 //baseObj.ExtendF = "0";
 
-                sb = null;
+                //sb = null;
 
                 #endregion
             }
@@ -2149,11 +2166,12 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
   FROM EMR_QCDATA M, COM_FILEINFO N
  WHERE M.INPATIENTNO = '{0}'
    AND M.ID = N.ID
-   AND M.EMRNAME in ({ 1})
+   AND M.EMRNAME in ({1})
    AND M.STATE <> '3'";
 
             sql = string.Format(sql, inpatientNo, "'死亡记录'");
 
+            connect.Open();
             OracleCommand command = new OracleCommand(sql, connect);
             OracleDataReader Reader = command.ExecuteReader();
 
@@ -2228,11 +2246,12 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
   FROM EMR_QCDATA M, COM_FILEINFO N
  WHERE M.INPATIENTNO = '{0}'
    AND M.ID = N.ID
-   AND M.EMRNAME in ({ 1})
+   AND M.EMRNAME in ({1})
    AND M.STATE <> '3'";
 
             sql = string.Format(sql, inpatientNo, "'二十四小时内入出院记录'");
 
+            connect.Open();
             OracleCommand command = new OracleCommand(sql, connect);
             OracleDataReader Reader = command.ExecuteReader();
 
@@ -2256,6 +2275,14 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
             //emrMultiLineTextBox3   治疗经过  user01
             //emrMultiLineTextBox6   出院情况  user02
             //emrMultiLineTextBox5   出院医嘱  user03
+            //emrMultiLineTextBox2   入院诊断  user02
+            //emrMultiLineTextBox4   出院诊断  user03
+            //baseObj.ExtendB = GetPropertyValue(x); //入院情况
+            //baseObj.ExtendF = GetPropertyValue(x); //入院诊断
+            //baseObj.ExtendC = GetPropertyValue(x);//治疗经过
+            //baseObj.ExtendD = GetPropertyValue(x); //出院情况
+            //baseObj.ExtendG = GetPropertyValue(x);// 出院诊断
+            //baseObj.ExtendE = GetPropertyValue(x); //出院医嘱
 
             System.IO.File.WriteAllText("emrtmp.xml", xml);
 
@@ -2264,17 +2291,14 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
             var query = from frm in element.Elements("Object")
                         from pan in frm.Elements("Object")
                         from ele in pan.Elements("Object")
-                        where ((XAttribute)ele.Attribute("name")).Value == "emrMultiLineTextBox5" ||
-                        ((XAttribute)ele.Attribute("name")).Value == "emrMultiLineTextBox3" ||
-                        ((XAttribute)ele.Attribute("name")).Value == "emrMultiLineTextBox7" ||
-                        ((XAttribute)ele.Attribute("name")).Value == "emrMultiLineTextBox6"
+                        where ((XAttribute)ele.Attribute("name")).Value.Contains("emrMultiLineTextBox")
                         select ele;
 
             foreach (var x in query)
             {
                 if (x.Attribute("name").Value == "emrMultiLineTextBox5")
                 {
-                    baseObj.ExtendE = GetPropertyValue(x);
+                    baseObj.ExtendE = GetPropertyValue(x); 
                 }
                 else if (x.Attribute("name").Value == "emrMultiLineTextBox3")
                 {
@@ -2288,9 +2312,15 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
                 {
                     baseObj.ExtendB = GetPropertyValue(x);
                 }
+                else if (x.Attribute("name").Value == "emrMultiLineTextBox2")
+                {
+                    baseObj.ExtendF = GetPropertyValue(x);
+                }
+                else if (x.Attribute("name").Value == "emrMultiLineTextBox4")
+                {
+                    baseObj.ExtendG = GetPropertyValue(x);
+                }
             }
-
-            baseObj.ExtendF = "0";
 
             return;
 
@@ -2311,11 +2341,12 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
   FROM EMR_QCDATA M, COM_FILEINFO N
  WHERE M.INPATIENTNO = '{0}'
    AND M.ID = N.ID
-   AND M.EMRNAME in ({ 1})
+   AND M.EMRNAME in ({1})
    AND M.STATE <> '3'";
 
             sql = string.Format(sql, inpatientNo, "'二十四小时内入院死亡记录'");
 
+            connect.Open();
             OracleCommand command = new OracleCommand(sql, connect);
             OracleDataReader Reader = command.ExecuteReader();
 
@@ -2429,5 +2460,6 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
             }
         }
         #endregion
+
     }
 }

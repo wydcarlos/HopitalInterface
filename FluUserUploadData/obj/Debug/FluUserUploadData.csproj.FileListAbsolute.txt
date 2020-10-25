@@ -1,5 +1,10 @@
-D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.csprojAssemblyReference.cache
 D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.Form1.resources
 D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.csproj.GenerateResource.cache
 D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.Properties.Resources.resources
 D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.csproj.CoreCompileInputs.cache
+D:\Working\HopitalInterface\FluUserUploadData\bin\Debug\FluUserUploadData.exe
+D:\Working\HopitalInterface\FluUserUploadData\bin\Debug\FluUserUploadData.pdb
+D:\Working\HopitalInterface\FluUserUploadData\bin\Debug\ICSharpCode.SharpZipLib.dll
+D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.csproj.CopyComplete
+D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.exe
+D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.pdb

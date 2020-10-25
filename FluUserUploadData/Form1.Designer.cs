@@ -39,6 +39,7 @@
             this.dtpBegin = new System.Windows.Forms.DateTimePicker();
             this.dtpEnd = new System.Windows.Forms.DateTimePicker();
             this.btnSetting = new System.Windows.Forms.Button();
+            this.btnExport = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnFluPatient
@@ -143,11 +144,22 @@
             this.btnSetting.UseVisualStyleBackColor = true;
             this.btnSetting.Click += new System.EventHandler(this.btnSetting_Click);
             // 
+            // btnExport
+            // 
+            this.btnExport.Location = new System.Drawing.Point(320, 72);
+            this.btnExport.Name = "btnExport";
+            this.btnExport.Size = new System.Drawing.Size(102, 28);
+            this.btnExport.TabIndex = 16;
+            this.btnExport.Text = "导出所有数据";
+            this.btnExport.UseVisualStyleBackColor = true;
+            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(464, 359);
+            this.Controls.Add(this.btnExport);
             this.Controls.Add(this.btnSetting);
             this.Controls.Add(this.dtpEnd);
             this.Controls.Add(this.dtpBegin);
@@ -181,6 +193,7 @@
         private System.Windows.Forms.DateTimePicker dtpBegin;
         private System.Windows.Forms.DateTimePicker dtpEnd;
         private System.Windows.Forms.Button btnSetting;
+        private System.Windows.Forms.Button btnExport;
     }
 }
 

@@ -12,6 +12,7 @@ using ICSharpCode.SharpZipLib.Zip;
 using ICSharpCode.SharpZipLib.Checksums;
 using System.Threading;
 using System.Xml.Linq;
+using System.Data.SqlClient;
 
 namespace FluUserUploadData
 {
@@ -23,17 +24,25 @@ namespace FluUserUploadData
         }
 
         public static string ConnectionString = "data source=bjhis;password=his-0765;persist security info=True;user id=bjhis";
+        public static string BAConnectionString = "Data Source=192.0.1.196;Initial Catalog=bagl_java;User ID=sa;Password=";
+        public static string LISConnectionString = "Data Source=192.168.60.164;Initial Catalog=clabsdbc;User ID=lis;Password=slis";
+
         public string strZip = "";
         public string strFile = AppDomain.CurrentDomain.BaseDirectory + @"\流感系统\Excel";
 
         public DataSet FluDataSet = new DataSet();
+
+        private void btnSetting_Click(object sender, EventArgs e)
+        {
+            this.GetFluUserData();
+        }
 
         /// <summary>
         /// 门急诊和在院流感病例
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void button1_Click(object sender, EventArgs e)
+        private void btnFluPatient_Click(object sender, EventArgs e)
         {
 
             #region 门急诊和在院流感病例数据
@@ -332,6 +341,9 @@ SELECT '45608783744060611A1001' P900, -- 医疗机构代码  是
             {
 
                 DataTable dt = vfp.Tables[0];
+                DataView receiveDV = dt.DefaultView;
+                receiveDV.RowFilter = "INSTATE ='I'";
+                dt = receiveDV.ToTable();
 
                 var query = from t in dt.AsEnumerable()
                             group t by new { t1 = t.Field<string>("clinic_code") } into m
@@ -375,211 +387,11 @@ SELECT '45608783744060611A1001' P900, -- 医疗机构代码  是
         }
 
         /// <summary>
-        /// 导出csv文件
-        /// </summary>
-        /// <param name="dt"></param>
-        /// <param name="filePath"></param>
-        public static void TableToCsv(DataTable dt, string filePath)
-        {
-            FileInfo fi = new FileInfo(filePath);
-            string path = fi.DirectoryName;
-            string name = fi.Name;
-            //\/:*?"<>|
-            //把文件名和路径分别取出来处理
-            name = name.Replace(@"\", "＼");
-            name = name.Replace(@"/", "／");
-            name = name.Replace(@":", "：");
-            name = name.Replace(@"*", "＊");
-            name = name.Replace(@"?", "？");
-            name = name.Replace(@"<", "＜");
-            name = name.Replace(@">", "＞");
-            name = name.Replace(@"|", "｜");
-            string title = "";
-
-            FileStream fs = new FileStream(path + "\\" + name, FileMode.Create);
-            StreamWriter sw = new StreamWriter(new BufferedStream(fs), System.Text.Encoding.Default);
-
-            for (int i = 0; i < dt.Columns.Count; i++)
-            {
-                title += dt.Columns[i].ColumnName + ",";
-            }
-            title = title.Substring(0, title.Length - 1) + "\n";
-            sw.Write(title);
-
-            foreach (DataRow row in dt.Rows)
-            {
-                if (row.RowState == DataRowState.Deleted) continue;
-                string line = "";
-                for (int i = 0; i < dt.Columns.Count; i++)
-                {
-                    line += row[i].ToString().Replace(",", "") + ",\t";//加\t为设置单元格文本格式
-                }
-                line = line.Substring(0, line.Length - 1) + "\n";
-
-                sw.Write(line);
-            }
-
-            sw.Close();
-            fs.Close();
-        }
-
-        /// <summary>
-        /// 查询数据
-        /// </summary>
-        /// <param name="sql"></param>
-        /// <returns></returns>
-        public DataSet GetDataSet(string sql)
-        {
-            DataSet dsResult = new DataSet();
-
-            string sqlInsert = string.Format(sql);
-
-            OracleConnection connection = new OracleConnection(ConnectionString);
-            OracleCommand command = null;
-            OracleTransaction transaction = null;
-
-            try
-            {
-                connection.Open();
-                transaction = connection.BeginTransaction();
-
-                command = connection.CreateCommand();
-                command.Transaction = transaction;
-
-                command.CommandText = sqlInsert;
-
-
-                OracleDataAdapter Adpt = new OracleDataAdapter(command);
-                Adpt.Fill(dsResult, "NewTable");
-                connection.Close();
-            }
-            catch (Exception ex)
-            {
-                connection.Close();
-            }
-
-            return dsResult;
-        }
-
-        /// <summary>
-        /// 用药记录数据
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button5_Click(object sender, EventArgs e)
-        {
-
-            #region 用药记录数据
-
-            string sql = @"
-
---附件6 用药记录
-SELECT '01' P7501, --1 就诊类型  
-       a.card_no P7502, --2 就诊卡号  
-       a.reg_date P7506, --3 就诊日期  
-       t.mo_order P7500, --4 顺序号  每条新增处方或医嘱的顺序号，用药记录唯一性标识 
-       t.item_name P8016, --5 药物名称  
-       1 P8017, --6药物使用频率
-       t.qty P8018, --7药物使用总剂量 
-       t.qty P8019, --8药物使用次剂量 
-       t.dose_once P8020, --9药物使用剂量 
-       t.oper_date P8021, --10药物使用开始时间  
-       t.fee_date P8022 --11药物使用结束时间 
-  FROM fin_opb_feedetail t, fin_opr_register a
- WHERE a.clinic_code = t.clinic_code
-   and t.cancel_flag = '1'
-   and t.pay_flag ='1'
-   and t.qty > 0
-   and t.fee_date>to_date('1900-01-01','yyyy-mm-dd')
-   and t.clinic_code = '{0}'
-
-UNION ALL
-
-SELECT '03' P7501, --1 就诊类型  
-       FII.Patient_No P7502, --2 就诊卡号  
-       FII.in_DATE P7506, --3 就诊日期  
-       o.mo_order P7500, --4 顺序号  每条新增处方或医嘱的顺序号，用药记录唯一性标识 
-       o.item_name P8016, --5 药物名称  
-       1 P8017, --6药物使用频率（日次数）
-       o.qty_tot P8018, --7药物使用总剂量 
-       o.dose_once P8019, --8药物使用次剂量  
-       o.qty_tot P8020, --9药物使用剂量 
-       case when o.date_bgn<to_date('1900-01-01','yyyy-mm-dd') then to_date('1800-01-01','yyyy-mm-dd') else o.date_bgn end P8021, --10药物使用开始时间 
-       case when o.date_end<to_date('1900-01-01','yyyy-mm-dd') then to_date('1800-01-01','yyyy-mm-dd') else o.date_end end P8022 --11药物使用结束时间 
-  FROM MET_IPM_ORDER o, fin_ipr_inmaininfo fii 
- WHERE 1 = 1 
-   and o.confirm_flag = '1' 
-   and o.qty_tot > 0
-   AND fii.inpatient_no = o.inpatient_no
-   and fii.inpatient_no ='{0}'
-
-
-
-
-";
-
-            #endregion
-
-            #region 导出数据
-            //获取流感患者
-            DataSet vfp = FluDataSet;
-
-            DataTable all = new DataTable();
-
-            if (vfp.Tables[0].Rows.Count > 0)
-            {
-
-                DataTable dt = vfp.Tables[0];
-
-                var query = from t in dt.AsEnumerable()
-                            group t by new { t1 = t.Field<string>("clinic_code") } into m
-                            select new
-                            {
-                                clinic_code = m.Key.t1
-                            };
-                if (query.ToList().Count > 0)
-                {
-                    query.ToList().ForEach(q =>
-                    {
-                        if (!q.clinic_code.Contains("-"))
-                        {
-                            DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
-
-                            if (ds.Tables[0].Rows.Count > 0)
-                            {
-                                all.Merge(ds.Tables[0]);
-                            }
-                        }
-                    });
-                }
-
-                if (all.Rows.Count > 0)
-                {
-                    string filePath = strFile + @"\pdr_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
-
-                    TableToCsv(all, filePath);
-                    //strZip = filePath.Replace("Excel", "ZipFile").Replace(".csv", ".zip");
-                    strZip = filePath.Replace("Excel", "ZipFile");
-                    
-
-                    //压缩备份
-                    string strZipBak = strZip.Replace("ZipFile", "ZipFileBak").Replace(".csv", ".zip");
-                    ZipFile(strFile, strZipBak);
-
-                    File.Copy(filePath, strZip, true);
-                   
-                }
-            }
-            #endregion
-
-        }
-
-        /// <summary>
         /// 出院流感病例数据
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void button2_Click(object sender, EventArgs e)
+        private void btnOutpatient_Click(object sender, EventArgs e)
         {
 
             #region 出院流感病例数据
@@ -948,8 +760,8 @@ SELECT
   FROM TPATIENTVISIT A WITH(NOLOCK) LEFT JOIN TDIAGNOSE B WITH(NOLOCK) ON A.FPRN=B.FPRN AND A.FTIMES=B.FTIMES AND FZDLX='1'
     LEFT JOIN TOPERATION C WITH(NOLOCK) ON A.FPRN=C.FPRN AND A.FTIMES=C.FTIMES AND C.FPX=1
     LEFT JOIN TDIAGNOSE D WITH(NOLOCK) ON A.FPRN=D.FPRN AND A.FTIMES=D.FTIMES AND D.FZDLX='s' 
-    LEFT JOIN xRef_ICD F ON A.FPHZDBH=F.FICDM AND F.Category='M码'
-    LEFT JOIN xRef_Dict E ON LEFT(A.FHKADDR,2)=E.ItemCode AND E.Dict='RC036'
+    --LEFT JOIN xRef_ICD F ON A.FPHZDBH=F.FICDM AND F.Category='M码'
+    --LEFT JOIN xRef_Dict E ON LEFT(A.FHKADDR,2)=E.ItemCode AND E.Dict='RC036'
     LEFT JOIN xRef_Dict G ON C.FMAZUIBH=G.ItemCode AND G.Dict='RC013'
     LEFT JOIN xRef_Dept H ON A.FRYTYKH=H.ItemCode AND H.Dict='RC023'
     LEFT JOIN xRef_Dept I ON A.FZKTYKH=I.ItemCode AND I.Dict='RC023'
@@ -979,14 +791,15 @@ SELECT
 
                 DataView receiveDV = dt.DefaultView;
 
-                receiveDV.RowFilter = "patient_type ='住院'";
+                receiveDV.RowFilter = "INSTATE ='O'";
                 dt = receiveDV.ToTable();
 
                 var query = from t in dt.AsEnumerable()
-                            group t by new { t1 = t.Field<string>("clinic_code") } into m
+                            group t by new { t1 = t.Field<string>("clinic_code"),t2=t.Field<string>("kdate") } into m
                             select new
                             {
-                                clinic_code = m.Key.t1
+                                clinic_code = m.Key.t1,
+                                kdate = m.Key.t2
                             };
                 if (query.ToList().Count > 0)
                 {
@@ -995,7 +808,7 @@ SELECT
                         if (!q.clinic_code.Contains("-"))
                         {
 
-                            DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
+                            DataSet ds = GetDataSetForSql(BAConnectionString, string.Format(sql, q.clinic_code, q.kdate));
 
                             if (ds.Tables[0].Rows.Count > 0)
                             {
@@ -1022,6 +835,660 @@ SELECT
             }
             #endregion
 
+        }
+
+        /// <summary>
+        /// 出院小结数据
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void btnOutResult_Click(object sender, EventArgs e)
+        {
+
+            #region 出院小结数据
+            string sql = @"SELECT T.PATIENT_NO AS P3, --病案号
+       T.NAME AS P4, --姓名
+       DECODE(T.SEX_CODE, 'F', '2', 'M', '1', '9') AS P5, --性别
+       TO_CHAR(SYSDATE, 'yyyy') - TO_CHAR(T.BIRTHDAY, 'yyyy') AS P7, --年龄
+       T.IN_DATE AS P22, --入院日期
+       (SELECT (SELECT A.INTERFACE_CODE
+                  FROM COM_COMPARE_INTERFACEINFO A
+                 WHERE T.DEPT_CODE = A.LOCAL_CODE
+                   AND A.INTERFACE_TYPE = '科室对照'
+                   AND ROWNUM = 1)
+          FROM COM_SHIFTDATA CS
+         WHERE CS.SHIFT_TYPE = 'B'
+           AND CS.CLINIC_NO = T.INPATIENT_NO
+           AND CS.HAPPEN_NO = (SELECT MAX(CSA.HAPPEN_NO)
+                                 FROM COM_SHIFTDATA CSA
+                                WHERE CSA.CLINIC_NO = CS.CLINIC_NO
+                                  AND CSA.SHIFT_TYPE = 'B')
+           AND ROWNUM = 1) AS P23, --入院科别
+       (SELECT (SELECT A.INTERFACE_CODE
+                  FROM COM_COMPARE_INTERFACEINFO A
+                 WHERE T.DEPT_CODE = A.LOCAL_CODE
+                   AND A.INTERFACE_TYPE = '科室对照'
+                   AND ROWNUM = 1)
+          FROM COM_SHIFTDATA CS
+         WHERE CS.SHIFT_TYPE = 'RO'
+           AND CS.CLINIC_NO = T.INPATIENT_NO
+           AND CS.HAPPEN_NO = (SELECT MAX(CSA.HAPPEN_NO)
+                                 FROM COM_SHIFTDATA CSA
+                                WHERE CSA.CLINIC_NO = CS.CLINIC_NO
+                                  AND CSA.SHIFT_TYPE = 'RO')
+           AND ROWNUM = 1) AS P24, --转科科别
+       T.OUT_DATE AS P25, --出院日期
+       (SELECT A.INTERFACE_CODE
+          FROM COM_COMPARE_INTERFACEINFO A
+         WHERE T.DEPT_CODE = A.LOCAL_CODE
+           AND A.INTERFACE_TYPE = '科室对照'
+           AND ROWNUM = 1) AS P26, --出院科别,
+       TRUNC(OUT_DATE - T.IN_DATE) AS P27, --实际住院天数
+       '' AS P8600, --入院诊断
+       '' AS P8604, ----入院情况及诊疗和抢救经过
+       '' AS P8605, ----死亡诊断
+       '' AS P8606, -----死亡原因
+       T.OUT_DATE AS P8509 ---死亡时间 
+  FROM FIN_IPR_INMAININFO T
+ WHERE T.INPATIENT_NO = '{0}'
+
+";
+
+            #endregion
+
+            #region 导出数据
+            //获取流感患者
+            DataSet vfp = FluDataSet;
+
+            DataTable all = new DataTable();
+
+            if (vfp.Tables[0].Rows.Count > 0)
+            {
+                DataTable dt = vfp.Tables[0];
+
+                DataView receiveDV = dt.DefaultView;
+
+                receiveDV.RowFilter = "INSTATE ='O'";
+                dt = receiveDV.ToTable();
+
+                var query = from t in dt.AsEnumerable()
+                            group t by new { t1 = t.Field<string>("clinic_code") } into m
+                            select new
+                            {
+                                clinic_code = m.Key.t1
+                            };
+
+                if (query.ToList().Count > 0)
+                {
+                    BaseObj obj = null;
+                    DataSet ds = null;
+                    query.ToList().ForEach(q =>
+                    {
+                        try
+                        {
+                            ds = GetDataSet(string.Format(sql, q.clinic_code));
+
+                            if (ds.Tables[0].Rows.Count > 0)
+                            {
+                                obj = new BaseObj();
+                                GetEmrOutResult(q.clinic_code, out obj);
+
+                                if (obj == null || string.IsNullOrEmpty(obj.ExtendA))
+                                {
+                                    GetEmr24HourInOut(q.clinic_code, out obj);
+                                }
+
+                                if (obj != null || !string.IsNullOrEmpty(obj.ExtendA))
+                                {
+                                    foreach (DataRow dr in ds.Tables[0].Rows)
+                                    {
+                                        //baseObj.ExtendB = GetPropertyValue(x); //入院情况
+                                        //baseObj.ExtendF = GetPropertyValue(x); //入院诊断
+                                        //baseObj.ExtendC = GetPropertyValue(x);//治疗经过
+                                        //baseObj.ExtendD = GetPropertyValue(x); //出院情况
+                                        //baseObj.ExtendG = GetPropertyValue(x);// 出院诊断
+                                        //baseObj.ExtendE = GetPropertyValue(x); //出院医嘱
+
+                                        dr["P8600"] = obj.ExtendF.Replace("\r","").Replace("\n","");
+                                        dr["P8601"] = obj.ExtendG.Replace("\r", "").Replace("\n", ""); 
+                                        dr["P8602"] = obj.ExtendB.Replace("\r", "").Replace("\n", "") + obj.ExtendC.Replace("\r", "").Replace("\n", "");
+                                        dr["P8603"] = obj.ExtendD.Replace("\r", "").Replace("\n", "");
+                                        dr["P8604"] = obj.ExtendE.Replace("\r", "").Replace("\n", "");
+                                    }
+
+                                    all.Merge(ds.Tables[0]);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        { 
+                        
+                        }
+                    });
+                }
+
+                if (all.Rows.Count > 0)
+                {
+                    string filePath = strFile + @"\hda_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
+
+                    TableToCsv(all, filePath);
+                    //strZip = filePath.Replace("Excel", "ZipFile").Replace(".csv", ".zip");
+                    strZip = filePath.Replace("Excel", "ZipFile");
+
+
+                    //压缩备份
+                    string strZipBak = strZip.Replace("ZipFile", "ZipFileBak").Replace(".csv", ".zip");
+                    ZipFile(strFile, strZipBak);
+
+                    File.Copy(filePath, strZip, true);
+                }
+            }
+            #endregion
+
+        }
+
+        /// <summary>
+        /// 死亡记录数据
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void btnDeath_Click(object sender, EventArgs e)
+        {
+
+            #region 死亡记录数据
+            string sql = @"
+
+--附件5 死亡记录接口标准 
+SELECT T.PATIENT_NO AS P3, --病案号
+       T.NAME AS P4, --姓名
+       DECODE(T.SEX_CODE, 'F', '2', 'M', '1', '9') AS P5, --性别
+       TO_CHAR(SYSDATE, 'yyyy') - TO_CHAR(T.BIRTHDAY, 'yyyy') AS P7, --年龄
+       T.IN_DATE AS P22, --入院日期
+       (SELECT (SELECT A.INTERFACE_CODE
+                  FROM COM_COMPARE_INTERFACEINFO A
+                 WHERE T.DEPT_CODE = A.LOCAL_CODE
+                   AND A.INTERFACE_TYPE = '科室对照'
+                   AND ROWNUM = 1)
+          FROM COM_SHIFTDATA CS
+         WHERE CS.SHIFT_TYPE = 'B'
+           AND CS.CLINIC_NO = T.INPATIENT_NO
+           AND CS.HAPPEN_NO = (SELECT MAX(CSA.HAPPEN_NO)
+                                 FROM COM_SHIFTDATA CSA
+                                WHERE CSA.CLINIC_NO = CS.CLINIC_NO
+                                  AND CSA.SHIFT_TYPE = 'B')
+           AND ROWNUM = 1) AS P23, --入院科别
+       (SELECT (SELECT A.INTERFACE_CODE
+                  FROM COM_COMPARE_INTERFACEINFO A
+                 WHERE T.DEPT_CODE = A.LOCAL_CODE
+                   AND A.INTERFACE_TYPE = '科室对照'
+                   AND ROWNUM = 1)
+          FROM COM_SHIFTDATA CS
+         WHERE CS.SHIFT_TYPE = 'RO'
+           AND CS.CLINIC_NO = T.INPATIENT_NO
+           AND CS.HAPPEN_NO = (SELECT MAX(CSA.HAPPEN_NO)
+                                 FROM COM_SHIFTDATA CSA
+                                WHERE CSA.CLINIC_NO = CS.CLINIC_NO
+                                  AND CSA.SHIFT_TYPE = 'RO')
+           AND ROWNUM = 1) AS P24, --转科科别
+       T.OUT_DATE AS P25, --出院日期
+       (SELECT A.INTERFACE_CODE
+          FROM COM_COMPARE_INTERFACEINFO A
+         WHERE T.DEPT_CODE = A.LOCAL_CODE
+           AND A.INTERFACE_TYPE = '科室对照'
+           AND ROWNUM = 1) AS P26, --出院科别,
+       TRUNC(OUT_DATE - T.IN_DATE) AS P27, --实际住院天数
+       '' AS P8600, --入院诊断
+       '' AS P8604, ----入院情况及诊疗和抢救经过
+       '' AS P8605, ----死亡诊断
+       '' AS P8606, -----死亡原因
+       T.OUT_DATE AS P8509 ---死亡时间 
+  FROM FIN_IPR_INMAININFO T
+ WHERE T.INPATIENT_NO = '{0}'
+";
+            #endregion
+
+            #region 导出数据
+
+            //获取流感患者
+            DataSet vfp = FluDataSet;//
+
+            DataTable all = new DataTable();
+
+            if (vfp.Tables[0].Rows.Count > 0)
+            {
+
+                DataTable dt = vfp.Tables[0];
+
+                DataView receiveDV = dt.DefaultView;
+
+                receiveDV.RowFilter = "patient_type ='住院'";
+                dt = receiveDV.ToTable();
+
+                var query = from t in dt.AsEnumerable()
+                            group t by new { t1 = t.Field<string>("clinic_code") } into m
+                            select new
+                            {
+                                clinic_code = m.Key.t1
+                            };
+
+                if (query.ToList().Count > 0)
+                {
+                    BaseObj obj = null;
+                    DataSet ds = null;
+                    query.ToList().ForEach(q =>
+                    {
+                        try
+                        {
+                            ds = GetDataSet(string.Format(sql, q.clinic_code));
+                            if (ds.Tables[0].Rows.Count > 0)
+                            {
+
+                                obj = new BaseObj();
+
+                                GetEmrDeath(q.clinic_code, out obj);
+
+                                if (obj == null || string.IsNullOrEmpty(obj.ExtendA))
+                                {
+                                    GetEmr24HourInOutDeath(q.clinic_code, out obj);
+                                }
+
+                                if (obj != null && !string.IsNullOrEmpty(obj.ExtendA))
+                                {
+                                    foreach (DataRow dr in ds.Tables[0].Rows)
+                                    {
+                                        //baseObj.ExtendB = GetPropertyValue(x); //入院情况
+                                        //baseObj.ExtendC = GetPropertyValue(x); //治疗经过
+                                        //baseObj.ExtendD = GetPropertyValue(x); //死亡诊断
+                                        //baseObj.ExtendE = GetPropertyValue(x); //死亡原因
+                                        //baseObj.ExtendF = GetPropertyValue(x); //入院诊断
+
+                                        dr["P8600"] = obj.ExtendF.Replace("\r", "").Replace("\n", ""); 
+                                        dr["P8604"] = obj.ExtendB.Replace("\r", "").Replace("\n", "") + obj.ExtendC.Replace("\r", "").Replace("\n", "");
+                                        dr["P8605"] = obj.ExtendD.Replace("\r", "").Replace("\n", "");
+                                        dr["P8606"] = obj.ExtendE.Replace("\r", "").Replace("\n", "");
+                                        //dr["P8609"] = obj.ExtendF.Replace("\r", "").Replace("\n", "");
+                                    }
+                                    all.Merge(ds.Tables[0]);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        { 
+                        }
+                    });
+                }
+
+                if (all.Rows.Count > 0)
+                {
+                    string filePath = strFile + @"\hdr_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
+
+                    TableToCsv(all, filePath);
+                    strZip = filePath.Replace("Excel", "ZipFile");
+
+
+                    //压缩备份
+                    string strZipBak = strZip.Replace("ZipFile", "ZipFileBak").Replace(".csv", ".zip");
+                    ZipFile(strFile, strZipBak);
+
+                    File.Copy(filePath, strZip, true);
+                }
+            }
+            #endregion
+
+        }
+
+        /// <summary>
+        /// 用药记录数据
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void btnDrug_Click(object sender, EventArgs e)
+        {
+
+            #region 用药记录数据
+
+            string sql = @"
+
+--附件6 用药记录
+SELECT '01' P7501, --1 就诊类型  
+       a.card_no P7502, --2 就诊卡号  
+       a.reg_date P7506, --3 就诊日期  
+       t.mo_order P7500, --4 顺序号  每条新增处方或医嘱的顺序号，用药记录唯一性标识 
+       t.item_name P8016, --5 药物名称  
+       1 P8017, --6药物使用频率
+       t.qty P8018, --7药物使用总剂量 
+       t.qty P8019, --8药物使用次剂量 
+       t.dose_once P8020, --9药物使用剂量 
+       t.oper_date P8021, --10药物使用开始时间  
+       t.fee_date P8022 --11药物使用结束时间 
+  FROM fin_opb_feedetail t, fin_opr_register a
+ WHERE a.clinic_code = t.clinic_code
+   and t.cancel_flag = '1'
+   and t.pay_flag ='1'
+   and t.qty > 0
+   and t.fee_date>to_date('1900-01-01','yyyy-mm-dd')
+   and t.clinic_code = '{0}'
+
+UNION ALL
+
+SELECT '03' P7501, --1 就诊类型  
+       FII.Patient_No P7502, --2 就诊卡号  
+       FII.in_DATE P7506, --3 就诊日期  
+       o.mo_order P7500, --4 顺序号  每条新增处方或医嘱的顺序号，用药记录唯一性标识 
+       o.item_name P8016, --5 药物名称  
+       1 P8017, --6药物使用频率（日次数）
+       o.qty_tot P8018, --7药物使用总剂量 
+       o.dose_once P8019, --8药物使用次剂量  
+       o.qty_tot P8020, --9药物使用剂量 
+       case when o.date_bgn<to_date('1900-01-01','yyyy-mm-dd') then to_date('1800-01-01','yyyy-mm-dd') else o.date_bgn end P8021, --10药物使用开始时间 
+       case when o.date_end<to_date('1900-01-01','yyyy-mm-dd') then to_date('1800-01-01','yyyy-mm-dd') else o.date_end end P8022 --11药物使用结束时间 
+  FROM MET_IPM_ORDER o, fin_ipr_inmaininfo fii 
+ WHERE 1 = 1 
+   and o.confirm_flag = '1' 
+   and o.qty_tot > 0
+   AND fii.inpatient_no = o.inpatient_no
+   and fii.inpatient_no ='{0}'
+
+
+
+
+";
+
+            #endregion
+
+            #region 导出数据
+            //获取流感患者
+            DataSet vfp = FluDataSet;
+
+            DataTable all = new DataTable();
+
+            if (vfp.Tables[0].Rows.Count > 0)
+            {
+
+                DataTable dt = vfp.Tables[0];
+
+                var query = from t in dt.AsEnumerable()
+                            group t by new { t1 = t.Field<string>("clinic_code") } into m
+                            select new
+                            {
+                                clinic_code = m.Key.t1
+                            };
+                if (query.ToList().Count > 0)
+                {
+                    query.ToList().ForEach(q =>
+                    {
+                        if (!q.clinic_code.Contains("-"))
+                        {
+                            DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
+
+                            if (ds.Tables[0].Rows.Count > 0)
+                            {
+                                all.Merge(ds.Tables[0]);
+                            }
+                        }
+                    });
+                }
+
+                if (all.Rows.Count > 0)
+                {
+                    string filePath = strFile + @"\pdr_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
+
+                    TableToCsv(all, filePath);
+                    //strZip = filePath.Replace("Excel", "ZipFile").Replace(".csv", ".zip");
+                    strZip = filePath.Replace("Excel", "ZipFile");
+
+
+                    //压缩备份
+                    string strZipBak = strZip.Replace("ZipFile", "ZipFileBak").Replace(".csv", ".zip");
+                    ZipFile(strFile, strZipBak);
+
+                    File.Copy(filePath, strZip, true);
+
+                }
+            }
+            #endregion
+
+        }
+
+        /// <summary>
+        /// 检验记录数据
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void btnLis_Click(object sender, EventArgs e)
+        {
+            string sql = @"
+
+
+--附件7 检验记录（门诊）
+SELECT '01' P7501, -- 1 就诊类型 
+       c.patientid P7502, --2 就诊卡号  门急诊卡号或住院号或病案号
+       r.reg_date P7506, --就诊日期  
+       c.barcode P8000, --4 标本号   检验标本唯一性标识
+       '4' P8001, --5 流感检测代码
+       d.sampletime P8002, --6 送检时间  
+       c.result P8003, --7 检验结果描述  
+       (CASE
+         WHEN instr(c.value, '阳性') > 0 THEN
+          '1'
+         ELSE
+          '2'
+       END) P8004, --8 检验结果是否阳性 
+       decode(C.Value, '阴性', '35', '阳性(+)', '36', '99') P8005 --9检测结果阳性类别 P8004=1 时必填。
+
+  from LIS_RESULT c, lis_test_reg d, fin_opr_register r
+ where c.barcode = d.barcode
+   and c.patientid = r.card_no
+   and d.his_itemcode = 'F00000013480'
+   and c.itemcode in ('IB', 'P3', 'P2', 'P1', 'IA')
+   and c.result = '阳性(+)'
+   and c.patientid in (select r.card_no
+                         from fin_opr_register r
+                        where r.clinic_code = '{0}'
+                          and r.valid_flag = '1'
+                          and rownum = 1)
+
+union all
+
+--附件7 检验记录（住院）
+SELECT '01' P7501, -- 1 就诊类型 
+       c.patientid P7502, --2 就诊卡号  门急诊卡号或住院号或病案号
+       r.reg_date P7506, --就诊日期  
+       c.barcode P8000, --4 标本号   检验标本唯一性标识
+       '4' P8001, --5 流感检测代码
+       d.sampletime P8002, --6 送检时间  
+       c.result P8003, --7 检验结果描述  
+       (CASE
+         WHEN instr(c.value, '阳性') > 0 THEN
+          '1'
+         ELSE
+          '2'
+       END) P8004, --8 检验结果是否阳性 
+       decode(C.Value, '阴性', '35', '阳性(+)', '36', '99') P8005 --9检测结果阳性类别 P8004=1 时必填。
+
+  from LIS_RESULT c, lis_test_reg d, fin_opr_register r
+ where c.barcode = d.barcode
+   and c.patientid = r.card_no
+   and d.his_itemcode = 'F00000013480'
+   and c.itemcode in ('IB', 'P3', 'P2', 'P1', 'IA')
+   and c.result = '阳性(+)'
+   and c.patientid in (select card_no
+                         from fin_ipr_inmaininfo i
+                        where i.inpatient_no = '{0}')
+
+
+
+";
+
+            #region 导出数据
+            //获取流感患者
+            DataSet vfp = FluDataSet;
+
+            DataTable all = new DataTable();
+
+            if (vfp.Tables[0].Rows.Count > 0)
+            {
+
+                DataTable dt = vfp.Tables[0];
+
+                var query = from t in dt.AsEnumerable()
+                            group t by new { t1 = t.Field<string>("clinic_code") } into m
+                            select new
+                            {
+                                clinic_code = m.Key.t1
+                            };
+                if (query.ToList().Count > 0)
+                {
+                    query.ToList().ForEach(q =>
+                    {
+                        if (!q.clinic_code.Contains("-"))
+                        {
+                            DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
+
+                            if (ds.Tables[0].Rows.Count > 0)
+                            {
+                                all.Merge(ds.Tables[0]);
+                            }
+                        }
+                    });
+                }
+
+                if (all.Rows.Count > 0)
+                {
+                    string filePath = strFile + @"\lis_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
+
+                    TableToCsv(all, filePath);
+                    strZip = filePath.Replace("Excel", "ZipFile");
+
+
+                    //压缩备份
+                    string strZipBak = strZip.Replace("ZipFile", "ZipFileBak").Replace(".csv", ".zip");
+                    ZipFile(strFile, strZipBak);
+
+                    File.Copy(filePath, strZip, true);
+                }
+            }
+            #endregion
+        }
+
+        /// <summary>
+        /// 导出csv文件
+        /// </summary>
+        /// <param name="dt"></param>
+        /// <param name="filePath"></param>
+        public static void TableToCsv(DataTable dt, string filePath)
+        {
+            FileInfo fi = new FileInfo(filePath);
+            string path = fi.DirectoryName;
+            string name = fi.Name;
+            //\/:*?"<>|
+            //把文件名和路径分别取出来处理
+            name = name.Replace(@"\", "＼");
+            name = name.Replace(@"/", "／");
+            name = name.Replace(@":", "：");
+            name = name.Replace(@"*", "＊");
+            name = name.Replace(@"?", "？");
+            name = name.Replace(@"<", "＜");
+            name = name.Replace(@">", "＞");
+            name = name.Replace(@"|", "｜");
+            string title = "";
+
+            FileStream fs = new FileStream(path + "\\" + name, FileMode.Create);
+            StreamWriter sw = new StreamWriter(new BufferedStream(fs), System.Text.Encoding.Default);
+
+            for (int i = 0; i < dt.Columns.Count; i++)
+            {
+                title += dt.Columns[i].ColumnName + ",";
+            }
+            title = title.Substring(0, title.Length - 1) + "\n";
+            sw.Write(title);
+
+            foreach (DataRow row in dt.Rows)
+            {
+                if (row.RowState == DataRowState.Deleted) continue;
+                string line = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    line += row[i].ToString().Replace(",", "") + ",\t";//加\t为设置单元格文本格式
+                }
+                line = line.Substring(0, line.Length - 1) + "\n";
+
+                sw.Write(line);
+            }
+
+            sw.Close();
+            fs.Close();
+        }
+
+        /// <summary>
+        /// 查询数据
+        /// </summary>
+        /// <param name="sql"></param>
+        /// <returns></returns>
+        public DataSet GetDataSet(string sql)
+        {
+            DataSet dsResult = new DataSet();
+
+            string sqlInsert = string.Format(sql);
+
+            OracleConnection connection = new OracleConnection(ConnectionString);
+            OracleCommand command = null;
+            OracleTransaction transaction = null;
+
+            try
+            {
+                connection.Open();
+                transaction = connection.BeginTransaction();
+
+                command = connection.CreateCommand();
+                command.Transaction = transaction;
+
+                command.CommandText = sqlInsert;
+
+
+                OracleDataAdapter Adpt = new OracleDataAdapter(command);
+                Adpt.Fill(dsResult, "NewTable");
+                connection.Close();
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+            }
+
+            return dsResult;
+        }
+
+        public DataSet GetDataSetForSql(string connectionStr, string sql)
+        {
+            DataSet dsResult = new DataSet();
+
+            string sqlInsert = string.Format(sql);
+
+            SqlConnection connection = new SqlConnection(connectionStr);
+            SqlCommand command = null;
+            SqlTransaction transaction = null;
+
+            try
+            {
+                connection.Open();
+                transaction = connection.BeginTransaction();
+
+                command = connection.CreateCommand();
+                command.Transaction = transaction;
+
+                command.CommandText = sqlInsert;
+
+
+                SqlDataAdapter Adpt = new SqlDataAdapter(command);
+                Adpt.Fill(dsResult, "NewTable");
+                connection.Close();
+            }
+            catch (Exception ex)
+            {
+                connection.Close();
+            }
+
+            return dsResult;
         }
 
         /// <summary>
@@ -1125,162 +1592,18 @@ SELECT
         }
 
         /// <summary>
-        /// 出院小结数据
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button3_Click(object sender, EventArgs e)
-        {
-
-            #region 出院小结数据
-            string sql = @"
-SELECT INFO.INPATIENT_NO AS P3, --病案号
-       INFO.NAME AS P4, --姓名
-       DECODE(INFO.SEX_CODE, 'F', '2', 'M', '1', '9') AS P5, --性别
-       (CASE
-         WHEN ADD_MONTHS(INFO.BIRTHDAY,
-                         (EXTRACT(YEAR FROM INFO.IN_DATE) -
-                         EXTRACT(YEAR FROM INFO.BIRTHDAY)) * 12) <
-              INFO.IN_DATE THEN
-          EXTRACT(YEAR FROM INFO.IN_DATE) - EXTRACT(YEAR FROM INFO.BIRTHDAY)
-         ELSE
-          EXTRACT(YEAR FROM INFO.IN_DATE) - EXTRACT(YEAR FROM INFO.BIRTHDAY) - 1
-       END) AS P7, --年龄
-       INFO.IN_DATE AS P22, --入院日期
-       (SELECT (SELECT A.INTERFACE_CODE
-                  FROM COM_COMPARE_INTERFACEINFO A
-                 WHERE INFO.DEPT_CODE = A.LOCAL_CODE
-                   AND A.INTERFACE_TYPE = '科室对照'
-                   AND ROWNUM = 1)
-          FROM COM_SHIFTDATA CS
-         WHERE CS.SHIFT_TYPE = 'B'
-           AND CS.CLINIC_NO = INFO.INPATIENT_NO
-           AND CS.HAPPEN_NO = (SELECT MAX(CSA.HAPPEN_NO)
-                                 FROM COM_SHIFTDATA CSA
-                                WHERE CSA.CLINIC_NO = CS.CLINIC_NO
-                                  AND CSA.SHIFT_TYPE = 'B')
-           AND ROWNUM = 1) AS P23, --入院科别
-       (SELECT (SELECT A.INTERFACE_CODE
-                  FROM COM_COMPARE_INTERFACEINFO A
-                 WHERE INFO.DEPT_CODE = A.LOCAL_CODE
-                   AND A.INTERFACE_TYPE = '科室对照'
-                   AND ROWNUM = 1)
-          FROM COM_SHIFTDATA CS
-         WHERE CS.SHIFT_TYPE = 'RO'
-           AND CS.CLINIC_NO = INFO.INPATIENT_NO
-           AND CS.HAPPEN_NO = (SELECT MAX(CSA.HAPPEN_NO)
-                                 FROM COM_SHIFTDATA CSA
-                                WHERE CSA.CLINIC_NO = CS.CLINIC_NO
-                                  AND CSA.SHIFT_TYPE = 'RO')
-           AND ROWNUM = 1) AS P24, --转科科别
-       INFO.OUT_DATE AS P25, --出院日期
-       (SELECT A.INTERFACE_CODE
-          FROM COM_COMPARE_INTERFACEINFO A
-         WHERE INFO.DEPT_CODE = A.LOCAL_CODE
-           AND A.INTERFACE_TYPE = '科室对照'
-           AND ROWNUM = 1) AS P26, ---出院科别
-       decode(TRUNC(INFO.OUT_DATE - INFO.IN_DATE),0,1,TRUNC(INFO.OUT_DATE - INFO.IN_DATE)) AS P27, --实际住院天数
-       NVL(INFO.CLINIC_DIAGNOSE,
-           (SELECT M.DIAG_NAME
-              FROM MET_CAS_DIAGNOSE M
-             WHERE M.INPATIENT_NO = INFO.INPATIENT_NO
-               AND m.happen_no = 1)) AS P8600, --入院诊断
-       NVL((SELECT M.DIAG_NAME
-             FROM MET_CAS_DIAGNOSE M
-            WHERE M.INPATIENT_NO = INFO.INPATIENT_NO
-              AND m.happen_no = 1),
-           '-') AS P8601, ----出院诊断
-       '' AS P8602, -------入院情况及诊疗经过
-       '' AS P8603, --------出院情况及治疗结果
-       '' AS P8604 -----出院医嘱
-  FROM FIN_IPR_INMAININFO INFO
- WHERE INFO.IN_STATE IN ('B', 'O')
-   AND INFO.INPATIENT_NO = '{0}'";
-
-            #endregion
-
-            #region 导出数据
-            //获取流感患者
-            DataSet vfp = FluDataSet;
-
-            DataTable all = new DataTable();
-
-            if (vfp.Tables[0].Rows.Count > 0)
-            {
-                DataTable dt = vfp.Tables[0];
-
-                DataView receiveDV = dt.DefaultView;
-
-                receiveDV.RowFilter = "patient_type ='住院' and patient_inout='O'";
-                dt = receiveDV.ToTable();
-
-                var query = from t in dt.AsEnumerable()
-                            group t by new { t1 = t.Field<string>("clinic_code") } into m
-                            select new
-                            {
-                                clinic_code = m.Key.t1
-                            };
-                if (query.ToList().Count > 0)
-                {
-                    BaseObj obj = null;
-                    query.ToList().ForEach(q =>
-                    {
-                        DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
-
-                        if (ds.Tables[0].Rows.Count > 0)
-                        {
-                            obj = new BaseObj();
-                            GetEmrOutResult(q.clinic_code, out obj);
-                            if(obj != null && obj.ExtendF !="1")
-
-                            all.Merge(ds.Tables[0]);
-                        }
-                    });
-                }
-
-                if (all.Rows.Count > 0)
-                {
-                    string filePath = strFile + @"\hda_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
-
-                    TableToCsv(all, filePath);
-                    //strZip = filePath.Replace("Excel", "ZipFile").Replace(".csv", ".zip");
-                    strZip = filePath.Replace("Excel", "ZipFile");
-                    
-
-                    //压缩备份
-                    string strZipBak = strZip.Replace("ZipFile", "ZipFileBak").Replace(".csv", ".zip");
-                    ZipFile(strFile, strZipBak);
-
-                    File.Copy(filePath, strZip, true);
-                }
-            }
-            #endregion
-
-        }
-
-        /// <summary>
         /// 获取流感患者信息
         /// </summary>
         /// <returns></returns>
         public DataSet GetFluUserData()
         {
-            string sTime = System.DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
-            string eTime = System.DateTime.Now.ToString("yyyy-MM-dd");
-
-            if (this.txtSartTime.Text.Trim() != "")
-            {
-                sTime = this.txtSartTime.Text.Trim();
-            }
-
-            if (this.txtEndTime.Text.Trim() != "")
-            {
-                eTime = this.txtEndTime.Text.Trim();
-            }
+            DateTime dtBegin = this.dtpBegin.Value.Date;
+            DateTime dtEnd = this.dtpEnd.Value.Date;
 
             string sqlVfp = string.Format(@"
 
-SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE
-  FROM (SELECT C.CLINIC_CODE CLINIC_CODE, '门诊' PATIENT_TYPE
+SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE, INSTATE
+  FROM (SELECT C.CLINIC_CODE CLINIC_CODE, '门诊' PATIENT_TYPE, 'M' INSTATE,trunc(c.reg_date) kdate
           FROM FIN_OPR_REGISTER C, MET_CAS_DIAGNOSE D
          WHERE C.CLINIC_CODE = D.INPATIENT_NO
            AND SUBSTR(D.ICD_CODE, 0, 3) BETWEEN 'J00' AND 'J99'
@@ -1301,7 +1624,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE
            AND r.reg_date <= TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')*/
         UNION ALL
         --根据门诊药品名称       
-        SELECT B.CLINIC_CODE, '门诊' PATIENT_TYPE
+        SELECT B.CLINIC_CODE, '门诊' PATIENT_TYPE, 'M' INSTATE,trunc(A.reg_date) kdate
           FROM FIN_OPR_REGISTER A, FIN_OPB_FEEDETAIL B
          WHERE A.CLINIC_CODE = B.CLINIC_CODE
            AND A.REG_DATE > TO_DATE('{0} 00:00:00', 'yyyy-mm-dd hh24:mi:ss')
@@ -1321,7 +1644,7 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE
            AND B.CANCEL_FLAG = '1'
         UNION ALL
         --门诊病历主诉提取
-        SELECT V.CLINIC_CODE, '门诊' PATIENT_TYPE
+        SELECT V.CLINIC_CODE, '门诊' PATIENT_TYPE, 'M' INSTATE,trunc(V.reg_date) kdate
           FROM FIN_OPR_REGISTER V, MET_CAS_HISTORY CURE
          WHERE V.CLINIC_CODE = CURE.CLINIC_CODE
            AND V.VALID_FLAG = '1'
@@ -1335,45 +1658,19 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE
                TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')
         UNION ALL
         -- 住院诊断
-        SELECT B.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE
+        SELECT B.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'I' INSTATE,trunc(B.IN_DATE) kdate
           FROM MET_CAS_DIAGNOSE A, FIN_IPR_INMAININFO B
          WHERE A.INPATIENT_NO = B.INPATIENT_NO
-           AND ((INSTR(A.DIAG_NAME, '甲') > 0 AND
-               INSTR(A.DIAG_NAME, '流') > INSTR(A.DIAG_NAME, '甲') AND
-               A.DIAG_NAME NOT LIKE '%流感嗜血%' AND
-               A.DIAG_NAME NOT LIKE '%副流感%' AND
-               A.DIAG_NAME NOT LIKE '%血流感染%') OR
-               (INSTR(A.DIAG_NAME, '乙') > 0 AND
-               INSTR(A.DIAG_NAME, '流') > INSTR(A.DIAG_NAME, '乙') AND
-               A.DIAG_NAME NOT LIKE '%流感嗜血%' AND
-               A.DIAG_NAME NOT LIKE '%副流感%' AND
-               A.DIAG_NAME NOT LIKE '%血流感染%') OR
-               (INSTR(A.DIAG_NAME, '流') > 0 AND
-               INSTR(A.DIAG_NAME, '感') > INSTR(A.DIAG_NAME, '流') AND
-               A.DIAG_NAME NOT LIKE '%流感嗜血%' AND
-               A.DIAG_NAME NOT LIKE '%副流感%' AND
-               A.DIAG_NAME NOT LIKE '%血流感染%') OR
-               (INSTR(A.DIAG_NAME, 'H') > 0 AND
-               INSTR(A.DIAG_NAME, 'N') > INSTR(A.DIAG_NAME, 'H')) OR
-               (INSTR(A.DIAG_NAME, '高热') > 0 OR
-               INSTR(A.DIAG_NAME, '发烧') > 0 OR
-               INSTR(A.DIAG_NAME, '发热') > 0) AND
-               (INSTR(A.DIAG_NAME, '咳嗽') > 0 OR
-               INSTR(A.DIAG_NAME, '咳痰') > 0) OR
-               (A.ICD_CODE IN (SELECT A.ICD_CODE
-                                  FROM MET_COM_ICD10 A
-                                 WHERE A.ICD_CODE > 'J00'
-                                   AND A.ICD_CODE < 'J99'
-                                   AND A.VALID_STATE = '1')) -- 通过诊断编码
-               )
+           AND SUBSTR(A.ICD_CODE, 0, 3) BETWEEN 'J00' AND 'J99'
            AND B.IN_DATE > TO_DATE('{0} 00:00:00', 'yyyy-mm-dd hh24:mi:ss')
            AND B.IN_DATE <= TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')
            AND B.IN_STATE = 'I'
         UNION ALL
         --住院使用了这个药品的患者
-        SELECT AF.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE
+        SELECT AF.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'I' INSTATE,trunc(AF.IN_DATE) kdate
           FROM FIN_IPR_INMAININFO AF, FIN_IPB_MEDICINELIST BD
          WHERE AF.INPATIENT_NO = BD.INPATIENT_NO
+           AND AF.IN_STATE IN ('I', 'R')
            AND AF.IN_DATE > TO_DATE('{0} 00:00:00', 'yyyy-mm-dd hh24:mi:ss')
            AND AF.IN_DATE <=
                TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')
@@ -1386,297 +1683,41 @@ SELECT DISTINCT CLINIC_CODE, PATIENT_TYPE
                INSTR(BD.DRUG_NAME, '金花清感颗粒') > 0 OR
                INSTR(BD.DRUG_NAME, '金刚烷胺') > 0 OR
                INSTR(BD.DRUG_NAME, '金刚乙胺') > 0 OR
+               INSTR(BD.DRUG_NAME, '利巴韦林') > 0)
+        UNION ALL
+        SELECT B.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'O' INSTATE,trunc(B.OUT_DATE) kdate
+          FROM MET_CAS_DIAGNOSE A, FIN_IPR_INMAININFO B
+         WHERE A.INPATIENT_NO = B.INPATIENT_NO
+           AND SUBSTR(A.ICD_CODE, 0, 3) BETWEEN 'J00' AND 'J99'
+           AND B.OUT_DATE > TO_DATE('{0} 00:00:00', 'yyyy-mm-dd hh24:mi:ss')
+           AND B.OUT_DATE <=
+               TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')
+        UNION ALL
+        --住院使用了这个药品的患者
+        SELECT AF.INPATIENT_NO CLINIC_CODE, '住院' PATIENT_TYPE, 'O' INSTATE,trunc(AF.OUT_DATE) kdate
+          FROM FIN_IPR_INMAININFO AF, FIN_IPB_MEDICINELIST BD
+         WHERE AF.INPATIENT_NO = BD.INPATIENT_NO
+           AND AF.OUT_DATE >
+               TO_DATE('{0} 00:00:00', 'yyyy-mm-dd hh24:mi:ss')
+           AND AF.OUT_DATE <=
+               TO_DATE('{1} 23:59:59', 'yyyy-mm-dd hh24:mi:ss')
+           AND BD.TRANS_TYPE = '1'
+           AND (INSTR(BD.DRUG_NAME, '奥司他韦') > 0 OR
+               INSTR(BD.DRUG_NAME, '扎那米韦') > 0 OR
+               INSTR(BD.DRUG_NAME, '阿比多尔') > 0 OR
+               INSTR(BD.DRUG_NAME, '阿比朵尔') > 0 OR
+               INSTR(BD.DRUG_NAME, '莲花清瘟') > 0 OR
+               INSTR(BD.DRUG_NAME, '金花清感颗粒') > 0 OR
+               INSTR(BD.DRUG_NAME, '金刚烷胺') > 0 OR
+               INSTR(BD.DRUG_NAME, '金刚乙胺') > 0 OR
                INSTR(BD.DRUG_NAME, '利巴韦林') > 0))
 
-", sTime, eTime);
+
+", dtpBegin.Value.Date.ToString("yyyy-MM-dd"), dtpEnd.Value.Date.ToString("yyyy-MM-dd"));
 
             FluDataSet = GetDataSet(sqlVfp);
 
             return FluDataSet;
-
-        }
-
-        /// <summary>
-        /// 检验记录数据
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button6_Click(object sender, EventArgs e)
-        {
-            #region 检验记录数据
-
-            string sql = @"
-
-
---附件7 检验记录（门诊）
-SELECT '01' P7501, -- 1 就诊类型 
-       c.patientid P7502, --2 就诊卡号  门急诊卡号或住院号或病案号
-       r.reg_date P7506, --就诊日期  
-       c.barcode P8000, --4 标本号   检验标本唯一性标识
-       '4' P8001, --5 流感检测代码
-       d.sampletime P8002, --6 送检时间  
-       c.result P8003, --7 检验结果描述  
-       (CASE
-         WHEN instr(c.value, '阳性') > 0 THEN
-          '1'
-         ELSE
-          '2'
-       END) P8004, --8 检验结果是否阳性 
-       decode(C.Value, '阴性', '35', '阳性(+)', '36', '99') P8005 --9检测结果阳性类别 P8004=1 时必填。
-
-  from LIS_RESULT c, lis_test_reg d, fin_opr_register r
- where c.barcode = d.barcode
-   and c.patientid = r.card_no
-   and d.his_itemcode = 'F00000013480'
-   and c.itemcode in ('IB', 'P3', 'P2', 'P1', 'IA')
-   and c.result = '阳性(+)'
-   and c.patientid in (select r.card_no
-                         from fin_opr_register r
-                        where r.clinic_code = '{0}'
-                          and r.valid_flag = '1'
-                          and rownum = 1)
-
-union all
-
---附件7 检验记录（住院）
-SELECT '01' P7501, -- 1 就诊类型 
-       c.patientid P7502, --2 就诊卡号  门急诊卡号或住院号或病案号
-       r.reg_date P7506, --就诊日期  
-       c.barcode P8000, --4 标本号   检验标本唯一性标识
-       '4' P8001, --5 流感检测代码
-       d.sampletime P8002, --6 送检时间  
-       c.result P8003, --7 检验结果描述  
-       (CASE
-         WHEN instr(c.value, '阳性') > 0 THEN
-          '1'
-         ELSE
-          '2'
-       END) P8004, --8 检验结果是否阳性 
-       decode(C.Value, '阴性', '35', '阳性(+)', '36', '99') P8005 --9检测结果阳性类别 P8004=1 时必填。
-
-  from LIS_RESULT c, lis_test_reg d, fin_opr_register r
- where c.barcode = d.barcode
-   and c.patientid = r.card_no
-   and d.his_itemcode = 'F00000013480'
-   and c.itemcode in ('IB', 'P3', 'P2', 'P1', 'IA')
-   and c.result = '阳性(+)'
-   and c.patientid in (select card_no
-                         from fin_ipr_inmaininfo i
-                        where i.inpatient_no = '{0}')
-
-
-
-";
-
-            #endregion
-
-
-            #region 导出数据
-            //获取流感患者
-            DataSet vfp = FluDataSet;
-
-            DataTable all = new DataTable();
-
-            if (vfp.Tables[0].Rows.Count > 0)
-            {
-
-                DataTable dt = vfp.Tables[0];
-
-                var query = from t in dt.AsEnumerable()
-                            group t by new { t1 = t.Field<string>("clinic_code") } into m
-                            select new
-                            {
-                                clinic_code = m.Key.t1
-                            };
-                if (query.ToList().Count > 0)
-                {
-                    query.ToList().ForEach(q =>
-                    {
-                        if (!q.clinic_code.Contains("-"))
-                        {
-                            DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
-
-                            if (ds.Tables[0].Rows.Count > 0)
-                            {
-                                all.Merge(ds.Tables[0]);
-                            }
-                        }
-                    });
-                }
-
-                if (all.Rows.Count > 0)
-                {
-                    string filePath = strFile + @"\lis_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
-
-                    TableToCsv(all, filePath);
-                    strZip = filePath.Replace("Excel", "ZipFile");
-                    
-
-                    //压缩备份
-                    string strZipBak = strZip.Replace("ZipFile", "ZipFileBak").Replace(".csv", ".zip");
-                    ZipFile(strFile, strZipBak);
-
-                    File.Copy(filePath, strZip, true);
-                }
-            }
-            #endregion
-
-        }
-
-        /// <summary>
-        /// 死亡记录数据
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void button4_Click(object sender, EventArgs e)
-        {
-
-            #region 死亡记录数据
-            string sql = @"
-
---附件5 死亡记录接口标准 
-select t.patient_no as P3, --病案号
-       t.name as P4, --姓名
-       decode(t.sex_code, 'F', '2', 'M', '1', '9') as P5, --性别
-       to_char(sysdate, 'yyyy') - to_char(t.birthday, 'yyyy') as P7, --年龄
-       t.in_date as P22, --入院日期
-       (select a.new_data_name
-          from com_shiftdata a
-         where a.shift_type = 'B'
-           and a.clinic_no = t.inpatient_no
-           AND ROWNUM = 1) as P23, --入院科别
-       (select a.new_data_name
-          from com_shiftdata a
-         where a.shift_type = 'RO'
-           and a.clinic_no = t.inpatient_no
-           AND ROWNUM = 1) as P24, --转科科别
-       t.out_date as P25, --出院日期
-       t.dept_name as P26, --出院科别,
-       trunc(out_date - t.in_date) as P27, --实际住院天数
-       (SELECT b.diag_name
-          FROM met_cas_diagnose b
-         WHERE t.inpatient_no = b.inpatient_no
-           AND b.diag_kind = '11'
-           AND ROWNUM = 1) as P8600, --入院诊断
-       (SELECT c.value
-          FROM rcd_record_item c, fin_ipr_inmaininfo t
-         WHERE c.inpatient_id = t.emr_inpatientid
-           AND c.value IS NOT NULL
-           AND c.element_id = '754'
-           AND ROWNUM = 1) as P8604, ----入院情况及诊疗和抢救经过
-       (SELECT c.value
-          FROM rcd_record_item c, fin_ipr_inmaininfo t
-         WHERE c.inpatient_id = t.emr_inpatientid
-              
-           AND c.value IS NOT NULL
-           AND c.element_id = '374'
-           AND ROWNUM = 1) as P8605, ----死亡诊断
-       nvl((select nvl(c.value, ' ')
-             from pt_inpatient_cure        cure,
-                  rcd_inpatient_record_set recset,
-                  rcd_inpatient_record     rec,
-                  rcd_record_item          c
-            where cure.inpatient_code = t.inpatient_no
-              and cure.id = recset.inpatient_id
-              and recset.id = rec.inpatient_record_set_id
-              and rec.id = c.inpatient_record
-              and rec.record_child_type = 'Dead_Record'
-              and c.element_id = 373
-              and rownum = 1),
-           (SELECT c.value
-              FROM rcd_record_item c
-             WHERE c.inpatient_id = t.emr_inpatientid
-               AND c.value IS NOT NULL
-               AND c.element_id = '373'
-               AND ROWNUM = 1)) as P8606, -----死亡原因
-       nvl((select to_date(substr(c.value, 0, 4) || '-' ||
-                          substr(c.value,
-                                 instr(c.value, '年') + 1,
-                                 instr(c.value, '月') - instr(c.value, '年') - 1) || '-' ||
-                          substr(c.value,
-                                 instr(c.value, '月') + 1,
-                                 instr(c.value, '日') - instr(c.value, '月') - 1) || ' ' ||
-                          substr(c.value,
-                                 instr(c.value, '日') + 1,
-                                 instr(c.value, '时') - instr(c.value, '日') - 1) || ':' ||
-                          substr(c.value,
-                                 instr(c.value, '时') + 1,
-                                 instr(c.value, '分') - instr(c.value, '时') - 1),
-                          'yyyy-MM-dd HH24:mi')
-             from pt_inpatient_cure        cure,
-                  rcd_inpatient_record_set recset,
-                  rcd_inpatient_record     rec,
-                  rcd_record_item          c
-            where cure.inpatient_code = t.inpatient_no
-              and cure.id = recset.inpatient_id
-              and recset.id = rec.inpatient_record_set_id
-              and rec.id = c.inpatient_record
-              and rec.record_child_type = 'Dead_Record'
-              and c.element_id = 376
-              and rownum = 1),
-           t.out_date) as P8509 ---死亡时间 
-  from fin_ipr_inmaininfo t
- WHERE t.inpatient_no = '{0}'      
-   and t.zg = '4'
-   AND t.in_state in ('B', 'O')
-
-
-            ";
-            #endregion
-
-            #region 导出数据
-
-            //获取流感患者
-            DataSet vfp = FluDataSet;//
-
-            DataTable all = new DataTable();
-
-            if (vfp.Tables[0].Rows.Count > 0)
-            {
-
-                DataTable dt = vfp.Tables[0];
-
-                DataView receiveDV = dt.DefaultView;
-
-                receiveDV.RowFilter = "patient_type ='住院'";
-                dt = receiveDV.ToTable();
-
-                var query = from t in dt.AsEnumerable()
-                            group t by new { t1 = t.Field<string>("clinic_code") } into m
-                            select new
-                            {
-                                clinic_code = m.Key.t1
-                            };
-                if (query.ToList().Count > 0)
-                {
-                    query.ToList().ForEach(q =>
-                    {
-
-                        DataSet ds = GetDataSet(string.Format(sql, q.clinic_code));
-
-                        if (ds.Tables[0].Rows.Count > 0)
-                        {
-                            all.Merge(ds.Tables[0]);
-                        }
-                    });
-                }
-
-                if (all.Rows.Count > 0)
-                {
-                    string filePath = strFile + @"\hdr_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
-
-                    TableToCsv(all, filePath);
-                    strZip = filePath.Replace("Excel", "ZipFile");
-
-
-                    //压缩备份
-                    string strZipBak = strZip.Replace("ZipFile", "ZipFileBak").Replace(".csv", ".zip");
-                    ZipFile(strFile, strZipBak);
-
-                    File.Copy(filePath, strZip, true);
-                }
-            }
-            #endregion
 
         }
 
@@ -1880,7 +1921,10 @@ select t.patient_no as P3, --病案号
             }
             else
             {
-                isSpecial = true;
+                baseObj = null;
+                return;
+                //isSpecial = false;
+                //isSpecial = true;
             }
 
             if (isSpecial)
@@ -2017,24 +2061,24 @@ select t.patient_no as P3, --病案号
                     }
                 }
 
-                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                //System.Text.StringBuilder sb = new System.Text.StringBuilder();
 
-                sb.Append("孕").Append(emrTextBox20).Append("产").Append(emrTextBox17)
-                    .Append("宫内妊娠").Append(emrTextBox14).Append("周");
-                baseObj.ExtendB = sb.ToString();
+                //sb.Append("孕").Append(emrTextBox20).Append("产").Append(emrTextBox17)
+                //    .Append("宫内妊娠").Append(emrTextBox14).Append("周");
+                //baseObj.ExtendB = sb.ToString();
 
-                sb = new System.Text.StringBuilder();
-                sb.Append("于").Append(emrDateTime2).Append(emrComboBox8).Append(emrComboBox7).Append(emrTextBox7)
-                    .Append(emrComboBox6).Append("活婴。Apgar评分：1分钟").Append(emrTextBox6).Append("分，5分钟")
-                    .Append(emrTextBox5).Append("分。胎盘娩出：").Append(emrTextBox4).Append("。会阴情况：裂伤")
-                    .Append(emrComboBox5).Append("，切口").Append(emrComboBox4).Append("。产后出血").Append(emrTextBox3)
-                    .Append("毫升（").Append(emrComboBox2).Append("），会阴伤口拆线").Append(emrTextBox2)
-                    .Append("针。会阴腹部伤口愈合：").Append(emrComboBox5).Append("类，").Append(emrComboBox3);
+                //sb = new System.Text.StringBuilder();
+                //sb.Append("于").Append(emrDateTime2).Append(emrComboBox8).Append(emrComboBox7).Append(emrTextBox7)
+                //    .Append(emrComboBox6).Append("活婴。Apgar评分：1分钟").Append(emrTextBox6).Append("分，5分钟")
+                //    .Append(emrTextBox5).Append("分。胎盘娩出：").Append(emrTextBox4).Append("。会阴情况：裂伤")
+                //    .Append(emrComboBox5).Append("，切口").Append(emrComboBox4).Append("。产后出血").Append(emrTextBox3)
+                //    .Append("毫升（").Append(emrComboBox2).Append("），会阴伤口拆线").Append(emrTextBox2)
+                //    .Append("针。会阴腹部伤口愈合：").Append(emrComboBox5).Append("类，").Append(emrComboBox3);
 
-                baseObj.ExtendC = sb.ToString();
-                baseObj.ExtendD = emrTextBox1;
-                baseObj.ExtendE = emrMultiLineTextBox3;
-                baseObj.ExtendF = "0";
+                //baseObj.ExtendC = sb.ToString();
+                //baseObj.ExtendD = emrTextBox1;
+                //baseObj.ExtendE = emrMultiLineTextBox3;
+                //baseObj.ExtendF = "0";
 
                 sb = null;
 
@@ -2059,31 +2103,30 @@ select t.patient_no as P3, --病案号
                 {
                     if (x.Attribute("name").Value == "emrMultiLineTextBox5")
                     {
-                        baseObj.ExtendB = GetPropertyValue(x);
+                        baseObj.ExtendB = GetPropertyValue(x); //入院情况
                     }
-                    //else if (x.Attribute("name").Value == "emrMultiLineTextBox6")
-                    //{
-                    //    baseObj.ExtendA = GetPropertyValue(x);
-                    //}
+                    else if (x.Attribute("name").Value == "emrMultiLineTextBox6")
+                    {
+                        baseObj.ExtendF = GetPropertyValue(x); //入院诊断
+                    }
                     else if (x.Attribute("name").Value == "emrMultiLineTextBox4")
                     {
-                        baseObj.ExtendC = GetPropertyValue(x);
+                        baseObj.ExtendC = GetPropertyValue(x);//治疗经过
                     }
                     else if (x.Attribute("name").Value == "emrMultiLineTextBox3")
                     {
-                        baseObj.ExtendD = GetPropertyValue(x);
+                        baseObj.ExtendD = GetPropertyValue(x); //出院情况
                     }
-                    //else if (x.Attribute("name").Value == "emrMultiLineTextBox2")
-                    //{
-                    //    neuObj.Name = GetPropertyValue(x);
-                    //}
+                    else if (x.Attribute("name").Value == "emrMultiLineTextBox2")
+                    {
+                        baseObj.ExtendG = GetPropertyValue(x);// 出院诊断
+                    }
                     else if (x.Attribute("name").Value == "emrMultiLineTextBox1")
                     {
-                        baseObj.ExtendE = GetPropertyValue(x);
+                        baseObj.ExtendE = GetPropertyValue(x); //出院医嘱
                     }
                 }
 
-                baseObj.ExtendF = "0";
                 #endregion
             }
 
@@ -2139,25 +2182,32 @@ select t.patient_no as P3, --病案号
             var query = from frm in element.Elements("Object")
                         from pan in frm.Elements("Object")
                         from ele in pan.Elements("Object")
-                        where ((XAttribute)ele.Attribute("name")).Value == "emrMultiLineTextBox5" ||
-                        ((XAttribute)ele.Attribute("name")).Value == "emrMultiLineTextBox3"
+                        where ((XAttribute)ele.Attribute("name")).Value.Contains("emrMultiLineTextBox")
                         select ele;
 
             foreach (var x in query)
             {
                 if (x.Attribute("name").Value == "emrMultiLineTextBox5")
                 {
-                    baseObj.ExtendB = GetPropertyValue(x);
+                    baseObj.ExtendB = GetPropertyValue(x); //入院情况
                 }
                 else if (x.Attribute("name").Value == "emrMultiLineTextBox3")
                 {
-                    baseObj.ExtendC = GetPropertyValue(x);
+                    baseObj.ExtendC = GetPropertyValue(x); //治疗经过
+                }
+                if (x.Attribute("name").Value == "emrMultiLineTextBox1")
+                {
+                    baseObj.ExtendD = GetPropertyValue(x); //死亡诊断
+                }
+                else if (x.Attribute("name").Value == "emrMultiLineTextBox2")
+                {
+                    baseObj.ExtendE = GetPropertyValue(x); //死亡原因
+                }
+                if (x.Attribute("name").Value == "emrMultiLineTextBox4")
+                {
+                    baseObj.ExtendF = GetPropertyValue(x); //入院诊断
                 }
             }
-
-            baseObj.ExtendD = "死亡";
-            baseObj.ExtendE = "无";
-            baseObj.ExtendF = "1";
 
             return;
 
@@ -2295,25 +2345,32 @@ select t.patient_no as P3, --病案号
             var query = from frm in element.Elements("Object")
                         from pan in frm.Elements("Object")
                         from ele in pan.Elements("Object")
-                        where ((XAttribute)ele.Attribute("name")).Value == "emrMultiLineTextBox6" ||
-                        ((XAttribute)ele.Attribute("name")).Value == "emrMultiLineTextBox4"
+                        where ((XAttribute)ele.Attribute("name")).Value.Contains("emrMultiLineTextBox")
                         select ele;
 
             foreach (var x in query)
             {
+                if (x.Attribute("name").Value == "emrMultiLineTextBox6")
+                {
+                    baseObj.ExtendB = GetPropertyValue(x); //入院情况
+                }
+                if (x.Attribute("name").Value == "emrMultiLineTextBox5")
+                {
+                    baseObj.ExtendD = GetPropertyValue(x); //死亡诊断
+                }
+                else if (x.Attribute("name").Value == "emrMultiLineTextBox3")
+                {
+                    baseObj.ExtendF = GetPropertyValue(x); //入院诊断
+                }
+                else if (x.Attribute("name").Value == "emrMultiLineTextBox2")
+                {
+                    baseObj.ExtendE = GetPropertyValue(x); //死亡原因
+                }
                 if (x.Attribute("name").Value == "emrMultiLineTextBox4")
                 {
-                    baseObj.ExtendC = GetPropertyValue(x);
-                }
-                else if (x.Attribute("name").Value == "emrMultiLineTextBox6")
-                {
-                    baseObj.ExtendB = GetPropertyValue(x);
+                    baseObj.ExtendC = GetPropertyValue(x); //诊疗经过
                 }
             }
-
-            baseObj.ExtendD = "死亡";
-            baseObj.ExtendE = "无";
-            baseObj.ExtendF = "1";
 
             return;
 
@@ -2372,6 +2429,5 @@ select t.patient_no as P3, --病案号
             }
         }
         #endregion
-
     }
 }

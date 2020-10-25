@@ -1,0 +1,5 @@
+D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.csprojAssemblyReference.cache
+D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.Form1.resources
+D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.csproj.GenerateResource.cache
+D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.Properties.Resources.resources
+D:\Working\HopitalInterface\FluUserUploadData\obj\Debug\FluUserUploadData.csproj.CoreCompileInputs.cache

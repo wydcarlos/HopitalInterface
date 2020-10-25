@@ -28,92 +28,83 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.button1 = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
-            this.button3 = new System.Windows.Forms.Button();
-            this.button4 = new System.Windows.Forms.Button();
-            this.button5 = new System.Windows.Forms.Button();
-            this.button6 = new System.Windows.Forms.Button();
-            this.txtSartTime = new System.Windows.Forms.TextBox();
+            this.btnFluPatient = new System.Windows.Forms.Button();
+            this.btnOutpatient = new System.Windows.Forms.Button();
+            this.btnOutResult = new System.Windows.Forms.Button();
+            this.btnDeath = new System.Windows.Forms.Button();
+            this.btnDrug = new System.Windows.Forms.Button();
+            this.btnLis = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.txtEndTime = new System.Windows.Forms.TextBox();
-            this.label3 = new System.Windows.Forms.Label();
-            this.label4 = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
+            this.dtpBegin = new System.Windows.Forms.DateTimePicker();
+            this.dtpEnd = new System.Windows.Forms.DateTimePicker();
+            this.btnSetting = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
-            // button1
+            // btnFluPatient
             // 
-            this.button1.Location = new System.Drawing.Point(93, 119);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(210, 23);
-            this.button1.TabIndex = 0;
-            this.button1.Text = "门急诊和在院流感病例";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.btnFluPatient.Location = new System.Drawing.Point(30, 113);
+            this.btnFluPatient.Name = "btnFluPatient";
+            this.btnFluPatient.Size = new System.Drawing.Size(210, 28);
+            this.btnFluPatient.TabIndex = 0;
+            this.btnFluPatient.Text = "门急诊和在院流感病例";
+            this.btnFluPatient.UseVisualStyleBackColor = true;
+            this.btnFluPatient.Click += new System.EventHandler(this.btnFluPatient_Click);
             // 
-            // button2
+            // btnOutpatient
             // 
-            this.button2.Location = new System.Drawing.Point(354, 119);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(210, 23);
-            this.button2.TabIndex = 1;
-            this.button2.Text = "出院流感病例数据";
-            this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
+            this.btnOutpatient.Location = new System.Drawing.Point(30, 154);
+            this.btnOutpatient.Name = "btnOutpatient";
+            this.btnOutpatient.Size = new System.Drawing.Size(210, 28);
+            this.btnOutpatient.TabIndex = 1;
+            this.btnOutpatient.Text = "出院流感病例数据";
+            this.btnOutpatient.UseVisualStyleBackColor = true;
+            this.btnOutpatient.Click += new System.EventHandler(this.btnOutpatient_Click);
             // 
-            // button3
+            // btnOutResult
             // 
-            this.button3.Location = new System.Drawing.Point(93, 210);
-            this.button3.Name = "button3";
-            this.button3.Size = new System.Drawing.Size(210, 23);
-            this.button3.TabIndex = 2;
-            this.button3.Text = "出院小结数据";
-            this.button3.UseVisualStyleBackColor = true;
-            this.button3.Click += new System.EventHandler(this.button3_Click);
+            this.btnOutResult.Location = new System.Drawing.Point(30, 195);
+            this.btnOutResult.Name = "btnOutResult";
+            this.btnOutResult.Size = new System.Drawing.Size(210, 28);
+            this.btnOutResult.TabIndex = 2;
+            this.btnOutResult.Text = "出院小结数据";
+            this.btnOutResult.UseVisualStyleBackColor = true;
+            this.btnOutResult.Click += new System.EventHandler(this.btnOutResult_Click);
             // 
-            // button4
+            // btnDeath
             // 
-            this.button4.Location = new System.Drawing.Point(354, 210);
-            this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(210, 23);
-            this.button4.TabIndex = 3;
-            this.button4.Text = "死亡记录数据";
-            this.button4.UseVisualStyleBackColor = true;
-            this.button4.Click += new System.EventHandler(this.button4_Click);
+            this.btnDeath.Location = new System.Drawing.Point(30, 236);
+            this.btnDeath.Name = "btnDeath";
+            this.btnDeath.Size = new System.Drawing.Size(210, 28);
+            this.btnDeath.TabIndex = 3;
+            this.btnDeath.Text = "死亡记录数据";
+            this.btnDeath.UseVisualStyleBackColor = true;
+            this.btnDeath.Click += new System.EventHandler(this.btnDeath_Click);
             // 
-            // button5
+            // btnDrug
             // 
-            this.button5.Location = new System.Drawing.Point(93, 298);
-            this.button5.Name = "button5";
-            this.button5.Size = new System.Drawing.Size(210, 23);
-            this.button5.TabIndex = 4;
-            this.button5.Text = "用药记录数据";
-            this.button5.UseVisualStyleBackColor = true;
-            this.button5.Click += new System.EventHandler(this.button5_Click);
+            this.btnDrug.Location = new System.Drawing.Point(30, 277);
+            this.btnDrug.Name = "btnDrug";
+            this.btnDrug.Size = new System.Drawing.Size(210, 28);
+            this.btnDrug.TabIndex = 4;
+            this.btnDrug.Text = "用药记录数据";
+            this.btnDrug.UseVisualStyleBackColor = true;
+            this.btnDrug.Click += new System.EventHandler(this.btnDrug_Click);
             // 
-            // button6
+            // btnLis
             // 
-            this.button6.Location = new System.Drawing.Point(354, 298);
-            this.button6.Name = "button6";
-            this.button6.Size = new System.Drawing.Size(210, 23);
-            this.button6.TabIndex = 5;
-            this.button6.Text = "检验记录数据";
-            this.button6.UseVisualStyleBackColor = true;
-            this.button6.Click += new System.EventHandler(this.button6_Click);
-            // 
-            // txtSartTime
-            // 
-            this.txtSartTime.Location = new System.Drawing.Point(125, 44);
-            this.txtSartTime.Name = "txtSartTime";
-            this.txtSartTime.Size = new System.Drawing.Size(108, 21);
-            this.txtSartTime.TabIndex = 6;
+            this.btnLis.Location = new System.Drawing.Point(30, 318);
+            this.btnLis.Name = "btnLis";
+            this.btnLis.Size = new System.Drawing.Size(210, 28);
+            this.btnLis.TabIndex = 5;
+            this.btnLis.Text = "检验记录数据";
+            this.btnLis.UseVisualStyleBackColor = true;
+            this.btnLis.Click += new System.EventHandler(this.btnLis_Click);
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(65, 47);
+            this.label1.Location = new System.Drawing.Point(28, 24);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(53, 12);
             this.label1.TabIndex = 7;
@@ -122,66 +113,52 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(352, 47);
+            this.label2.Location = new System.Drawing.Point(229, 24);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(53, 12);
             this.label2.TabIndex = 9;
             this.label2.Text = "结束时间";
             // 
-            // txtEndTime
+            // dtpBegin
             // 
-            this.txtEndTime.Location = new System.Drawing.Point(412, 44);
-            this.txtEndTime.Name = "txtEndTime";
-            this.txtEndTime.Size = new System.Drawing.Size(108, 21);
-            this.txtEndTime.TabIndex = 8;
+            this.dtpBegin.Location = new System.Drawing.Point(87, 20);
+            this.dtpBegin.Name = "dtpBegin";
+            this.dtpBegin.Size = new System.Drawing.Size(123, 21);
+            this.dtpBegin.TabIndex = 13;
             // 
-            // label3
+            // dtpEnd
             // 
-            this.label3.AutoSize = true;
-            this.label3.ForeColor = System.Drawing.Color.Red;
-            this.label3.Location = new System.Drawing.Point(242, 47);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(101, 12);
-            this.label3.TabIndex = 10;
-            this.label3.Text = "格式：yyyy-mm-dd";
+            this.dtpEnd.Location = new System.Drawing.Point(288, 20);
+            this.dtpEnd.Name = "dtpEnd";
+            this.dtpEnd.Size = new System.Drawing.Size(123, 21);
+            this.dtpEnd.TabIndex = 14;
             // 
-            // label4
+            // btnSetting
             // 
-            this.label4.AutoSize = true;
-            this.label4.ForeColor = System.Drawing.Color.Red;
-            this.label4.Location = new System.Drawing.Point(526, 47);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(101, 12);
-            this.label4.TabIndex = 11;
-            this.label4.Text = "格式：yyyy-mm-dd";
-            // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(103, 369);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(53, 12);
-            this.label5.TabIndex = 12;
-            this.label5.Text = "开始时间";
+            this.btnSetting.Location = new System.Drawing.Point(30, 72);
+            this.btnSetting.Name = "btnSetting";
+            this.btnSetting.Size = new System.Drawing.Size(210, 28);
+            this.btnSetting.TabIndex = 15;
+            this.btnSetting.Text = "设置导出时间段";
+            this.btnSetting.UseVisualStyleBackColor = true;
+            this.btnSetting.Click += new System.EventHandler(this.btnSetting_Click);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(694, 438);
-            this.Controls.Add(this.label5);
-            this.Controls.Add(this.label4);
-            this.Controls.Add(this.label3);
+            this.ClientSize = new System.Drawing.Size(464, 359);
+            this.Controls.Add(this.btnSetting);
+            this.Controls.Add(this.dtpEnd);
+            this.Controls.Add(this.dtpBegin);
             this.Controls.Add(this.label2);
-            this.Controls.Add(this.txtEndTime);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.txtSartTime);
-            this.Controls.Add(this.button6);
-            this.Controls.Add(this.button5);
-            this.Controls.Add(this.button4);
-            this.Controls.Add(this.button3);
-            this.Controls.Add(this.button2);
-            this.Controls.Add(this.button1);
+            this.Controls.Add(this.btnLis);
+            this.Controls.Add(this.btnDrug);
+            this.Controls.Add(this.btnDeath);
+            this.Controls.Add(this.btnOutResult);
+            this.Controls.Add(this.btnOutpatient);
+            this.Controls.Add(this.btnFluPatient);
             this.Name = "Form1";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "流感病例数据上传";
@@ -193,19 +170,17 @@
 
         #endregion
 
-        private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.Button button2;
-        private System.Windows.Forms.Button button3;
-        private System.Windows.Forms.Button button4;
-        private System.Windows.Forms.Button button5;
-        private System.Windows.Forms.Button button6;
-        private System.Windows.Forms.TextBox txtSartTime;
+        private System.Windows.Forms.Button btnFluPatient;
+        private System.Windows.Forms.Button btnOutpatient;
+        private System.Windows.Forms.Button btnOutResult;
+        private System.Windows.Forms.Button btnDeath;
+        private System.Windows.Forms.Button btnDrug;
+        private System.Windows.Forms.Button btnLis;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.TextBox txtEndTime;
-        private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.DateTimePicker dtpBegin;
+        private System.Windows.Forms.DateTimePicker dtpEnd;
+        private System.Windows.Forms.Button btnSetting;
     }
 }
 
